@@ -26,7 +26,7 @@ client_id = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
 
 class AADInternals():
 
-    def __init__(self, proxies={},use_cache=True,save_to_cache=True,tenant_id=None,cache_file=os.path.join(os.path.dirname(os.path.realpath(__file__)),'last_token.json'),domain=None,verify=True):
+    def __init__(self, proxies={},use_cache=True,save_to_cache=True,tenant_id=None,cache_file=os.path.join(os.path.dirname(os.path.realpath(__file__)),'last_token.json'),domain=None,verify=True,user_agent='AADInternals/1.0'):
         """
         Establish a connection with Microsoft and attempts to retrieve a token from Microsoft servers.
         Is initialization interactive if cache is not available : (M.F.A.)
@@ -39,7 +39,7 @@ class AADInternals():
             cache_file (str): Path to the cache_file (last token generated)
             domain (str): domain name , use for search tenant_id if tenant_id = None
             verify (str or Bool) : Allows you to specify SSL certificate verification when connecting to Microsoft servers. If `verify` is a path of type `str`, it must point to a certificate that will be used for SSL verification. If `verify` is of type `bool`, setting `True` enables certificate verification with the default certificate, while `False` disables all certificate verification.
-
+            user_agent (str | None) : will set the user_agent in the request.
         Returns:
             None
 
@@ -56,6 +56,7 @@ class AADInternals():
         self.cache_file=cache_file
 
         self.requests_session_call_adsyncapi = requests.Session()
+        self.user_agent: str = user_agent
 
         if domain and (not tenant_id):
 
@@ -829,7 +830,8 @@ class AADInternals():
     #https://github.com/Gerenios/AADInternals/blob/fd6474e840f457c32a297cadbad051cabe2a019b/ProvisioningAPI_utils.ps1#L127
     def call_provisioningapi(self,envelope):
         headers = {
-            'Content-type': 'application/soap+xml'
+            'Content-type': 'application/soap+xml',
+            'User-Agent': self.user_agent,
         }
         r = requests.post("https://provisioningapi.microsoftonline.com/provisioningwebservice.svc", headers=headers,data=envelope,proxies=self.proxies,timeout=15,verify=self.verify)
         return r.content
@@ -841,7 +843,7 @@ class AADInternals():
             'Content-type': 'application/soap+msbin1',
             "x-ms-aadmsods-clientversion": aadsync_client_version,
             "x-ms-aadmsods-dirsyncbuildnumber": aadsync_client_build,
-            "User-Agent":"",
+            "User-Agent": self.user_agent,
             "x-ms-aadmsods-fimbuildnumber":   aadsync_client_build,
             "x-ms-aadmsods-tenantid" : tenant_id,
             "client-request-id": message_id,
