@@ -24,9 +24,20 @@ aadsync_client_version="8.0"
 aadsync_client_build=  "2.6.84.0"
 client_id = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
 
+from pathlib import Path
+TOKEN_CACHE_FILE: str = str(Path(Path(__file__).parent.resolve() / 'last_token.json'))
 class AADInternals():
 
-    def __init__(self, proxies={},use_cache=True,save_to_cache=True,tenant_id=None,cache_file=os.path.join(os.path.dirname(os.path.realpath(__file__)),'last_token.json'),domain=None,verify=True,user_agent='AADInternals/1.0'):
+    def __init__(self,
+                 proxies={},
+                 use_cache=True,
+                 save_to_cache=True,#
+                 tenant_id=None,
+                 cache_file=TOKEN_CACHE_FILE,
+                 domain=None,verify=True,
+                 user_agent='AADInternals/1.0',
+                 token_provider=None
+                 ):
         """
         Establish a connection with Microsoft and attempts to retrieve a token from Microsoft servers.
         Is initialization interactive if cache is not available : (M.F.A.)
@@ -40,6 +51,7 @@ class AADInternals():
             domain (str): domain name , use for search tenant_id if tenant_id = None
             verify (str or Bool) : Allows you to specify SSL certificate verification when connecting to Microsoft servers. If `verify` is a path of type `str`, it must point to a certificate that will be used for SSL verification. If `verify` is of type `bool`, setting `True` enables certificate verification with the default certificate, while `False` disables all certificate verification.
             user_agent (str | None) : will set the user_agent in the request.
+            token_provider(str | None) : can be used instead of a generated token. 
         Returns:
             None
 
@@ -57,6 +69,7 @@ class AADInternals():
 
         self.requests_session_call_adsyncapi = requests.Session()
         self.user_agent: str = user_agent
+        self.token_provider = token_provider
 
         if domain and (not tenant_id):
 
@@ -85,15 +98,23 @@ class AADInternals():
         else:
             self.token_cache = msal.TokenCache()
 
-        self.app = msal.PublicClientApplication(
-            client_id,
-            authority=f"https://login.microsoftonline.com/{tenant_id}",
-            proxies=self.proxies,
-            verify=self.verify,
-            token_cache=self.token_cache
-        )
+        if self.token_provider is None:
+            self.app = msal.PublicClientApplication(
+                client_id,
+                authority=f"https://login.microsoftonline.com/{tenant_id}",
+                proxies=self.proxies,
+                verify=self.verify,
+                token_cache=self.token_cache
+            )
  
-    def get_token(self,scopes=["https://graph.windows.net/.default"]):
+    def get_token(
+        self,
+        scopes=["https://graph.windows.net/.default"]):
+    
+        # if token_prvider exists then use that and just don't use the token generation and caching
+        if self.token_provider is not None:
+            return self.token_provider.get_token(scopes)
+    
         token_response = None
     
         if self.use_cache:
